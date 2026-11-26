@@ -1,0 +1,220 @@
+---
+title: "BIO2105: Biostatistics — Chapter 9: Regression Analysis (FA 12)"
+author: "Chavez, Ishi Santi V.; Lagaña, Alyssa Kaye L.; Quillope, Arabela Renee Florence M."
+subtitle: "Section 4 — Correlation, Simple Linear Regression, and Residual Diagnostics"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: cosmo
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.width = 7,
+  fig.height = 4.5
+)
+```
+
+# Part I: Black Cherry Trees Dataset (`trees`) — 18 Points
+
+## Task 1: Variable Roles & Data Exploration
+
+```{r task1-exploration}
+data(trees)
+head(trees)
+str(trees)
+summary(trees[, c("Girth", "Volume")])
+```
+
+## Task 2: Scatter Plot with Fitted Regression Line
+
+```{r task2-scatterplot}
+tree_model <- lm(Volume ~ Girth, data = trees)
+
+par(mar = c(4.5, 4.5, 3, 1.5))
+plot(
+  trees$Girth, trees$Volume,
+  xlab = "Tree Girth (inches)",
+  ylab = "Timber Volume (cubic feet)",
+  main = "Black Cherry Trees: Girth vs. Timber Volume (n = 31)",
+  pch = 19, col = "steelblue", cex = 1.2
+)
+grid(col = "gray80")
+abline(tree_model, col = "darkorange", lwd = 2)
+legend(
+  "topleft",
+  legend = c("Observed Trees", "OLS Regression Line"),
+  pch = c(19, NA),
+  lty = c(NA, 1),
+  col = c("steelblue", "darkorange"),
+  lwd = c(NA, 2)
+)
+```
+
+## Task 3: Pearson's Correlation Coefficient ($r$)
+
+```{r task3-correlation}
+r_builtin <- cor(trees$Girth, trees$Volume)
+print(paste("Built-in correlation r =", round(r_builtin, 6)))
+
+# Manual calculation using standardized units
+n <- nrow(trees)
+x_bar <- mean(trees$Girth)
+y_bar <- mean(trees$Volume)
+s_x <- sd(trees$Girth)
+s_y <- sd(trees$Volume)
+
+r_manual <- (1 / (n - 1)) * sum(((trees$Girth - x_bar) / s_x) * ((trees$Volume - y_bar) / s_y))
+print(paste("Manual correlation r   =", round(r_manual, 6)))
+
+# Significance test for correlation
+cor.test(trees$Girth, trees$Volume)
+```
+
+## Task 4: Invariance Under Linear Transformation
+
+```{r task4-invariance}
+girth_cm <- 2.54 * trees$Girth
+volume_L <- 28.3168 * trees$Volume
+
+r_metric <- cor(girth_cm, volume_L)
+print(paste("Original r (in, ft^3):", round(r_builtin, 6)))
+print(paste("Metric r   (cm, L)   :", round(r_metric, 6)))
+print(paste("Absolute difference  :", abs(r_builtin - r_metric)))
+```
+
+## Task 5: Simple Linear Regression Estimation & Centroid Property
+
+```{r task5-estimation}
+coeffs <- coef(tree_model)
+b0 <- coeffs[1]
+b1 <- coeffs[2]
+print(coeffs)
+
+# Verify slope relationship with r: b1 = r * (s_y / s_x)
+b1_from_r <- r_builtin * (s_y / s_x)
+print(paste("Slope from lm()        :", round(b1, 6)))
+print(paste("Slope from r*(s_y/s_x) :", round(b1_from_r, 6)))
+
+# Verify regression line passes through (x_bar, y_bar)
+y_hat_at_xbar <- b0 + b1 * x_bar
+print(paste("Sample mean y_bar      :", round(y_bar, 6)))
+print(paste("Predicted y at x_bar   :", round(y_hat_at_xbar, 6)))
+```
+
+## Task 6: Coefficient of Determination ($R^2$)
+
+```{r task6-r-squared}
+r_squared <- summary(tree_model)$r.squared
+print(paste("R-squared from summary():", round(r_squared, 6)))
+print(paste("r^2 from correlation    :", round(r_builtin^2, 6)))
+```
+
+## Task 7: Inference for Slope & Confidence vs. Prediction Intervals
+
+```{r task7-inference}
+summary(tree_model)
+confint(tree_model, level = 0.95)
+
+new_trees <- data.frame(Girth = c(10, 14, 18))
+
+# 95% Confidence Interval for MEAN volume
+ci_mean <- predict(tree_model, newdata = new_trees, interval = "confidence", level = 0.95)
+print("95% Confidence Intervals (Mean Response):")
+print(round(ci_mean, 3))
+
+# 95% Prediction Interval for INDIVIDUAL tree volume
+pi_indiv <- predict(tree_model, newdata = new_trees, interval = "prediction", level = 0.95)
+print("95% Prediction Intervals (Individual Response):")
+print(round(pi_indiv, 3))
+```
+
+# Part II: American Women Height & Weight Dataset (`women`) — 12 Points
+
+## Task 8: Model Fitting & Scatter Plot
+
+```{r task8-women-model}
+data(women)
+head(women)
+
+women_model <- lm(weight ~ height, data = women)
+summary(women_model)
+
+par(mar = c(4.5, 4.5, 3, 1.5))
+plot(
+  women$height, women$weight,
+  xlab = "Height (inches)",
+  ylab = "Weight (lbs)",
+  main = "American Women (Ages 30-39): Height vs. Weight (n = 15)",
+  pch = 19, col = "steelblue", cex = 1.2
+)
+grid(col = "gray80")
+abline(women_model, col = "darkorange", lwd = 2)
+legend(
+  "topleft",
+  legend = c("Observed Data", "OLS Regression Line"),
+  pch = c(19, NA),
+  lty = c(NA, 1),
+  col = c("steelblue", "darkorange"),
+  lwd = c(NA, 2)
+)
+```
+
+## Task 9: ANOVA Table & Sum of Squares Decomposition
+
+```{r task9-anova-ss}
+anova(women_model)
+
+y_obs  <- women$weight
+y_hat  <- fitted(women_model)
+res    <- residuals(women_model)
+y_mean <- mean(y_obs)
+
+ss_total <- sum((y_obs - y_mean)^2)
+ss_reg   <- sum((y_hat - y_mean)^2)
+ss_error <- sum(res^2)
+
+print(paste("SS_Total             :", round(ss_total, 4)))
+print(paste("SS_Reg               :", round(ss_reg, 4)))
+print(paste("SS_Error             :", round(ss_error, 4)))
+print(paste("SS_Reg + SS_Error    :", round(ss_reg + ss_error, 4)))
+print(paste("R^2 = SS_Reg/SS_Total:", round(ss_reg / ss_total, 6)))
+```
+
+## Task 10: Residual Diagnostics & Assumption Checking
+
+```{r task10-diagnostics-grid, fig.width=7.5, fig.height=6}
+par(mfrow = c(2, 2), mar = c(4, 4, 2.5, 1))
+plot(women_model)
+par(mfrow = c(1, 1))
+```
+
+```{r task10-residuals-vs-fitted}
+par(mar = c(4.5, 4.5, 3, 1.5))
+plot(
+  fitted(women_model), residuals(women_model),
+  xlab = "Fitted Values (lbs)",
+  ylab = "Residuals (lbs)",
+  main = "Residuals vs. Fitted Values (women_model)",
+  pch = 19, col = "steelblue", cex = 1.2
+)
+grid(col = "gray80")
+abline(h = 0, col = "red", lty = 2, lwd = 2)
+```
+
+```{r task10-qqplot}
+par(mar = c(4.5, 4.5, 3, 1.5))
+qqnorm(
+  residuals(women_model),
+  main = "Normal Q-Q Plot of Residuals (women_model)",
+  pch = 19, col = "steelblue", cex = 1.2
+)
+qqline(residuals(women_model), col = "red", lty = 2, lwd = 2)
+grid(col = "gray80")
+```
